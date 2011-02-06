@@ -37,17 +37,20 @@
 
 (defn- start-ldap-server
   "Start up an embedded ldap server"
-  [port]
+  [port ssl-port]
   (let [work-path (doto "/tmp/apacheds" rm-rf mkdir-p)
         work-dir  (java.io.File. work-path)
         directory-service (doto (DefaultDirectoryService.)
                             (.setShutdownHookEnabled true)
                             (.setWorkingDirectory work-dir))
         ldap-transport (TcpTransport. port)
+        ssl-transport (doto (TcpTransport. ssl-port)
+                        (.setEnableSSL true))
         ldap-server (doto (LdapServer.)
                       (.setDirectoryService directory-service)
                       (.setAllowAnonymousAccess true)
-                      (.setTransports (into-array [ldap-transport])))]
+                      (.setTransports
+                       (into-array [ldap-transport ssl-transport])))]
     (-> (add-partition! directory-service
                         "clojure" "dc=alienscience,dc=org,dc=uk")
         (add-index! "objectClass" "ou" "uid"))
@@ -79,15 +82,15 @@
   []
   (if @server
     (let [[directory-service ldap-server] @server]
+      (reset! server nil)
       (.stop ldap-server)
-      (.shutdown directory-service)
-      (reset! server nil))))
+      (.shutdown directory-service))))
 
 (defn start!
   "Starts an embedded ldap server on the given port"
-  [port]
+  [port ssl-port]
   (stop!)
-  (let [s (start-ldap-server port)
+  (let [s (start-ldap-server port ssl-port)
         conn (ldap/connect {:address "localhost" :port port})]
-    (add-toplevel-objects! conn)
-    (reset! server s)))
+    (reset! server s)
+    (add-toplevel-objects! conn)))

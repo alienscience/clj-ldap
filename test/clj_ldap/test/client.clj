@@ -9,6 +9,7 @@
 
 ;; Tests are run over a variety of connection types
 (def port* 8000)
+(def ssl-port* 8001)
 (def *connections* nil)
 (def *conn* nil)
 
@@ -49,18 +50,19 @@
 
 (defn- connect-to-server
   "Opens a sequence of connection pools on the localhost server with the
-   given port"
-  [port]
+   given ports"
+  [port ssl-port]
   [(ldap/connect {:port port})
    (ldap/connect {:address "localhost"
                   :port port
-                  :num-connections 4})])
+                  :num-connections 4})
+   (ldap/connect {:ssl? true :port ssl-port})])
 
 (defn- test-server
   "Setup server"
   [f]
-  (server/start! port*)
-  (binding [*connections* (connect-to-server port*)]
+  (server/start! port* ssl-port*)
+  (binding [*connections* (connect-to-server port* ssl-port*)]
     (f))
   (server/stop!))
 

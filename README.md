@@ -25,20 +25,27 @@ clj-ldap is a thin layer on the [unboundid sdk](http://www.unboundid.com/product
 
 ## connect [options]
 
-Connects to an ldap server and returns an [LDAPConnectionPool](http://www.unboundid.com/products/ldap-sdk/docs/javadoc/com/unboundid/ldap/sdk/LDAPConnectionPool.html).
+Connects to an ldap server and returns a, thread safe, [LDAPConnectionPool](http://www.unboundid.com/products/ldap-sdk/docs/javadoc/com/unboundid/ldap/sdk/LDAPConnectionPool.html).
 Options is a map with the following entries:
     :address         Address of server, defaults to localhost
     :port            Port to connect to, defaults to 389
-    :bind-dn         The DN to bind as, can be a map or string, optional
+    :bind-dn         The DN to bind as, optional
     :password        The password to bind with, optional
     :num-connections The number of connections in the pool, defaults to 1
+    :ssl?            Boolean, connect over SSL (ldaps), defaults to false
+    :trust-store     Only trust SSL certificates that are in this
+                     JKS format file, optional, defaults to trusting all
+                     certificates
 
+For example:
+    (ldap/connect conn {:address "ldap.example.com" :num-connections 10})
+    
 ## get [connection dn]
   
 If successful, returns a map containing the entry for the given DN.
 Returns nil if the entry doesn't exist or cannot be read.
 
-    (ldap/connect conn {:address "ldap.example.com" :num-connections 10})
+    (ldap/get conn "cn=dude,ou=people,dc=example,dc=com")
 
 ## add [connection dn entry]
 

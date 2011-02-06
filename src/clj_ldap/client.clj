@@ -14,9 +14,26 @@
             ModificationType
             ModifyRequest
             Modification
-            DeleteRequest]))
+            DeleteRequest])
+  (:import [com.unboundid.util.ssl
+            SSLUtil
+            TrustAllTrustManager
+            TrustStoreTrustManager]))
 
 ;;======== Helper functions ====================================================
+
+(defn- create-connection
+  "Create an LDAPConnection object"
+  [address port ssl? trust-store]
+  (if ssl?
+    (let [trust-manager (if trust-store
+                          (TrustStoreTrustManager. trust-store)
+                          (TrustAllTrustManager.))
+          ssl-util (SSLUtil. trust-manager)]
+      (LDAPConnection. (.createSSLSocketFactory ssl-util)
+                       address
+                       (or port 636)))
+    (LDAPConnection. address (or port 389))))
 
 (defn- ldap-result
   "Converts an LDAPResult object into a clojure datastructure"
@@ -87,16 +104,23 @@
 ;;=========== API ==============================================================
 
 (defn connect
-  "Connects to an ldap server and returns an LDAPConnectionPool.
+  "Connects to an ldap server and returns a, thread safe, LDAPConnectionPool.
    Options is a map with the following entries:
    :address         Address of server, defaults to localhost
-   :port            Port to connect to, defaults to 389
-   :bind-dn         The DN to bind as, can be a map or string, optional
+   :port            Port to connect to, defaults to 389 (or 636 for ldaps)
+   :bind-dn         The DN to bind as, optional
    :password        The password to bind with, optional
    :num-connections The number of connections in the pool, defaults to 1
+   :ssl?            Boolean, connect over SSL (ldaps), defaults to false
+   :trust-store     Only trust SSL certificates that are in this
+                    JKS format file, optional, defaults to trusting all
+                    certificates
    "
-  [{:keys [address port bind-dn password num-connections] :as options}]
-  (let [connection (LDAPConnection. (or address "localhost") (or port 389))
+  [{:keys [address port bind-dn password num-connections
+           ssl? trust-store] :as options}]
+  
+  (let [connection (create-connection (or address "localhost")
+                                      port ssl? trust-store)
         bind-result (.bind connection bind-dn password)]
     (if (= ResultCode/SUCCESS (.getResultCode bind-result))
       (LDAPConnectionPool. connection (or num-connections 1))
