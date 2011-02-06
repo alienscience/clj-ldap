@@ -36,6 +36,12 @@ Options is a map with the following entries:
     :trust-store     Only trust SSL certificates that are in this
                      JKS format file, optional, defaults to trusting all
                      certificates
+    :reconnect?      Boolean, automatically reopen closed connections,
+                     defaults to false
+    :connect-timeout The timeout for making connections (milliseconds),
+                     defaults to 1 minute   
+    :timeout         The timeout when waiting for a response from the server
+                     (milliseconds), defaults to 5 minutes
 
 For example:
     (ldap/connect conn {:address "ldap.example.com" :num-connections 10})

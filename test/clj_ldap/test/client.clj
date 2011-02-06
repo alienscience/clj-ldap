@@ -56,7 +56,11 @@
    (ldap/connect {:address "localhost"
                   :port port
                   :num-connections 4})
-   (ldap/connect {:ssl? true :port ssl-port})])
+   (ldap/connect {:ssl? true :port ssl-port})
+   (ldap/connect {:port port
+                  :reconnect? true
+                  :connect-timeout 1000
+                  :timeout 5000})])
 
 (defn- test-server
   "Setup server"

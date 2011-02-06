@@ -5,6 +5,7 @@
   (:require [clojure.string :as string])
   (:import [com.unboundid.ldap.sdk
             LDAPResult
+            LDAPConnectionOptions
             LDAPConnection
             ResultCode
             LDAPConnectionPool
@@ -24,16 +25,23 @@
 
 (defn- create-connection
   "Create an LDAPConnection object"
-  [address port ssl? trust-store]
-  (if ssl?
-    (let [trust-manager (if trust-store
-                          (TrustStoreTrustManager. trust-store)
-                          (TrustAllTrustManager.))
-          ssl-util (SSLUtil. trust-manager)]
-      (LDAPConnection. (.createSSLSocketFactory ssl-util)
-                       address
-                       (or port 636)))
-    (LDAPConnection. address (or port 389))))
+  [{:keys [address port ssl? trust-store
+           reconnect? connect-timeout timeout]}]
+  (let [host (or address "localhost")
+        opt (LDAPConnectionOptions.)]
+    (when reconnect?      (.setAutoReconnect opt true))
+    (when connect-timeout (.setConnectTimeoutMillis opt connect-timeout))
+    (when timeout         (.setResponseTimeoutMillis opt timeout))
+    (if ssl?
+      (let [trust-manager (if trust-store
+                            (TrustStoreTrustManager. trust-store)
+                            (TrustAllTrustManager.))
+            ssl-util (SSLUtil. trust-manager)]
+        (LDAPConnection. (.createSSLSocketFactory ssl-util)
+                         opt
+                         host
+                         (or port 636)))
+      (LDAPConnection. opt host (or port 389)))))
 
 (defn- ldap-result
   "Converts an LDAPResult object into a clojure datastructure"
@@ -115,12 +123,16 @@
    :trust-store     Only trust SSL certificates that are in this
                     JKS format file, optional, defaults to trusting all
                     certificates
+   :reconnect?      Boolean, automatically reopen closed connections,
+                    defaults to false
+   :connect-timeout The timeout for making connections (milliseconds),
+                    defaults to 1 minute   
+   :timeout         The timeout when waiting for a response from the server
+                    (milliseconds), defaults to 5 minutes
    "
-  [{:keys [address port bind-dn password num-connections
-           ssl? trust-store] :as options}]
-  
-  (let [connection (create-connection (or address "localhost")
-                                      port ssl? trust-store)
+  [options]
+  (let [{:keys [bind-dn password num-connections]} options
+        connection (create-connection options)
         bind-result (.bind connection bind-dn password)]
     (if (= ResultCode/SUCCESS (.getResultCode bind-result))
       (LDAPConnectionPool. connection (or num-connections 1))
