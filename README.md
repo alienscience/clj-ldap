@@ -10,7 +10,7 @@ clj-ldap is a thin layer on the [unboundid sdk](http://www.unboundid.com/product
       
     (def ldap-server (ldap/connect {:address "ldap.example.com"}))
     
-    (ldap/get ldap-server "cn=dude,ou=people,dc=example,dc=com"))
+    (ldap/get ldap-server "cn=dude,ou=people,dc=example,dc=com")
     
     ;; Returns a map such as
     {:gidNumber "2000"
