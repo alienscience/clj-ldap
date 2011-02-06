@@ -66,6 +66,11 @@ a map in the form:
         {:attibute-d value
          :attribute-e [value1 value2]}
       :increment [:attribute-f attribute-g]}
+
+All the keys in the map are optional e.g:
+
+     (ldap/modify conn "cn=dude,ou=people,dc=example,dc=com"
+                  {:add {:telephoneNumber "232546265"}})
       
 ## delete [connection dn]
 
