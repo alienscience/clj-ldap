@@ -26,10 +26,9 @@
 (defn- create-connection
   "Create an LDAPConnection object"
   [{:keys [address port ssl? trust-store
-           reconnect? connect-timeout timeout]}]
+           connect-timeout timeout]}]
   (let [host (or address "localhost")
         opt (LDAPConnectionOptions.)]
-    (when reconnect?      (.setAutoReconnect opt true))
     (when connect-timeout (.setConnectTimeoutMillis opt connect-timeout))
     (when timeout         (.setResponseTimeoutMillis opt timeout))
     (if ssl?
@@ -123,8 +122,6 @@
    :trust-store     Only trust SSL certificates that are in this
                     JKS format file, optional, defaults to trusting all
                     certificates
-   :reconnect?      Boolean, automatically reopen closed connections,
-                    defaults to false
    :connect-timeout The timeout for making connections (milliseconds),
                     defaults to 1 minute   
    :timeout         The timeout when waiting for a response from the server

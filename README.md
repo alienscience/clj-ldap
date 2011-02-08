@@ -29,7 +29,7 @@ clj-ldap is a thin layer on the [unboundid sdk](http://www.unboundid.com/product
 Connects to an ldap server and returns a, thread safe, [LDAPConnectionPool](http://www.unboundid.com/products/ldap-sdk/docs/javadoc/com/unboundid/ldap/sdk/LDAPConnectionPool.html).
 Options is a map with the following entries:
     :address         Address of server, defaults to localhost
-    :port            Port to connect to, defaults to 389
+    :port            Port to connect to, defaults to 389 (or 636 for ldaps)
     :bind-dn         The DN to bind as, optional
     :password        The password to bind with, optional
     :num-connections The number of connections in the pool, defaults to 1
@@ -37,10 +37,7 @@ Options is a map with the following entries:
     :trust-store     Only trust SSL certificates that are in this
                      JKS format file, optional, defaults to trusting all
                      certificates
-    :reconnect?      Boolean, automatically reopen closed connections,
-                     defaults to false
     :connect-timeout The timeout for making connections (milliseconds),
-                     defaults to 1 minute   
     :timeout         The timeout when waiting for a response from the server
                      (milliseconds), defaults to 5 minutes
 
