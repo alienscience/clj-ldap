@@ -89,8 +89,7 @@ a map in the form:
          :attribute-e [value1 value2]}
       :replace
         {:attibute-d value
-         :attribute-e [value1 value2]}
-      :increment [:attribute-f attribute-g]}
+         :attribute-e [value1 value2]}}
 
 All the keys in the map are optional e.g:
 

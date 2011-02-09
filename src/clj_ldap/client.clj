@@ -155,14 +155,6 @@
   (for [[k v] modify-map]
     (create-modification modify-op (name k) v)))
 
-(defn- modify-incs
-  "Returns a sequence of Modification objects that increment the given
-   attribute(s)"
-  [attributes]
-  (if attributes
-    (if (coll? attributes)
-      (map #(Modification. ModificationType/INCREMENT %) attributes)
-      [(Modification. ModificationType/INCREMENT attributes)])))
 
 (defn- get-modify-request
   "Sets up a ModifyRequest object using the contents of the given map"
@@ -170,9 +162,8 @@
   (let [adds (modify-ops ModificationType/ADD (modifications :add))
         deletes (modify-ops ModificationType/DELETE (modifications :delete))
         replacements (modify-ops ModificationType/REPLACE
-                                 (modifications :replace))
-        incs (modify-incs (modifications :increment))]
-    (ModifyRequest. dn (into-array (concat adds deletes replacements incs)))))
+                                 (modifications :replace))]
+    (ModifyRequest. dn (into-array (concat adds deletes replacements)))))
 
 ;;=========== API ==============================================================
 
@@ -234,8 +225,7 @@
          :attribute-e [value1 value2]}
       :replace
         {:attibute-d value
-         :attribute-e [value1 value2]}
-      :increment [:attribute-f attribute-g]}
+         :attribute-e [value1 value2]}}
 "
   [connection dn modifications]
   (let [modify-obj (get-modify-request dn modifications)]
