@@ -46,7 +46,9 @@ Options is a map with the following entries:
     :timeout         The timeout when waiting for a response from the server
                      (milliseconds), defaults to 5 minutes
 
-For example:
+Throws a [LDAPException](http://www.unboundid.com/products/ldap-sdk/docs/javadoc/com/unboundid/ldap/sdk/LDAPException.html) if an error occurs establishing the connection pool or authenticating to any of the servers.
+
+An example:
     (ldap/connect conn {:host "ldap.example.com" :num-connections 10})
     
     (ldap/connect conn {:host [{:address "ldap1.example.com" :port 8000}
@@ -61,13 +63,16 @@ For example:
 ## get [connection dn]
   
 If successful, returns a map containing the entry for the given DN.
-Returns nil if the entry doesn't exist or cannot be read.
+Returns nil if the entry doesn't exist. 
 
     (ldap/get conn "cn=dude,ou=people,dc=example,dc=com")
+
+Throws a [LDAPException](http://www.unboundid.com/products/ldap-sdk/docs/javadoc/com/unboundid/ldap/sdk/LDAPException.html) on error.
 
 ## add [connection dn entry]
 
 Adds an entry to the connected ldap server. The entry is map of keywords to values which can be strings, sets or vectors.
+
 
     (ldap/add conn "cn=dude,ou=people,dc=example,dc=com"
                    {:objectClass #{"top" "person"}
@@ -76,6 +81,8 @@ Adds an entry to the connected ldap server. The entry is map of keywords to valu
                     :description "His dudeness"
                     :telephoneNumber ["1919191910" "4323324566"]})
                     
+Throws a [LDAPException](http://www.unboundid.com/products/ldap-sdk/docs/javadoc/com/unboundid/ldap/sdk/LDAPException.html) if there is an error with the request or the add failed.
+
 ## modify [connection dn modifications]                    
 
 Modifies an entry in the connected ldap server. The modifications are
@@ -96,6 +103,9 @@ All the keys in the map are optional e.g:
      (ldap/modify conn "cn=dude,ou=people,dc=example,dc=com"
                   {:add {:telephoneNumber "232546265"}})
 
+
+Throws a [LDAPException](http://www.unboundid.com/products/ldap-sdk/docs/javadoc/com/unboundid/ldap/sdk/LDAPException.html) on error.
+
 ## search [connection base]  [connection base options]
 
 Runs a search on the connected ldap server, reads all the results into
@@ -113,6 +123,8 @@ e.g
     (ldap/search conn "ou=people,dc=example,dc=com")
     
     (ldap/search conn "ou=people,dc=example,dc=com" {:attributes [:cn]})
+
+Throws a [LDAPSearchException](http://www.unboundid.com/products/ldap-sdk/docs/javadoc/com/unboundid/ldap/sdk/LDAPSearchException.html) on error.
 
 ## search! [connection base f]   [connection base options f]
 
@@ -137,10 +149,13 @@ e.g
                         {:filter "sn=dud*"}
                         (fn [x]
                            (println "Hello " (:cn x))))
- 
+
+Throws a [LDAPSearchException](http://www.unboundid.com/products/ldap-sdk/docs/javadoc/com/unboundid/ldap/sdk/LDAPSearchException.html) if an error occurs during search. Throws an [EntrySourceException](http://www.unboundid.com/products/ldap-sdk/docs/javadoc/com/unboundid/ldap/sdk/EntrySourceException.html) if there is an eror obtaining search results. 
+
 ## delete [connection dn]
 
 Deletes the entry with the given DN on the connected ldap server.
 
      (ldap/delete conn "cn=dude,ou=people,dc=example,dc=com")
 
+Throws a [LDAPException](http://www.unboundid.com/products/ldap-sdk/docs/javadoc/com/unboundid/ldap/sdk/LDAPException.html) if the object does not exist or an error occurs.
