@@ -99,7 +99,8 @@ All the keys in the map are optional e.g:
 ## search [connection base]  [connection base options]
 
 Runs a search on the connected ldap server, reads all the results into
-memory and returns the results as a sequence of maps.
+memory and returns the results as a sequence of maps. An introduction
+to ldap searching can be found in this [article](http://www.enterprisenetworkingplanet.com/netsysm/article.php/3317551/Unmasking-the-LDAP-Search-Filter.htm).
 
 Options is a map with the following optional entries:
       :scope       The search scope, can be :base :one or :sub,
@@ -127,7 +128,7 @@ Options is a map with the following optional entries:
      :attributes  A collection of the attributes to return,
                   defaults to all user attributes
      :queue-size  The size of the internal queue used to store results before
-                  they passed to the function, the default is 100
+                  they are passed to the function, the default is 100
 
 e.g
      (ldap/search! conn "ou=people,dc=example,dc=com" println)

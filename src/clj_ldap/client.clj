@@ -349,7 +349,7 @@
       :attributes  A collection of the attributes to return,
                    defaults to all user attributes
       :queue-size  The size of the internal queue used to store results before
-                   they passed to the function, the default is 100"
+                   they are passed to the function, the default is 100"
   ([connection base f]
      (search! connection base nil f))
   ([connection base options f]
