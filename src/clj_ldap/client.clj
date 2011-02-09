@@ -15,7 +15,9 @@
             ModificationType
             ModifyRequest
             Modification
-            DeleteRequest])
+            DeleteRequest
+            SimpleBindRequest
+            RoundRobinServerSet])
   (:import [com.unboundid.util.ssl
             SSLUtil
             TrustAllTrustManager
@@ -23,30 +25,94 @@
 
 ;;======== Helper functions ====================================================
 
-(defn- create-connection
-  "Create an LDAPConnection object"
-  [{:keys [address port ssl? trust-store
-           connect-timeout timeout]}]
-  (let [host (or address "localhost")
-        opt (LDAPConnectionOptions.)]
+(defn- ldap-result
+  "Converts an LDAPResult object into a vector"
+  [obj]
+  (let [res (.getResultCode obj)]
+    [(.intValue res) (.getName res)]))
+
+(defn- connection-options
+  "Returns a LDAPConnectionOptions object"
+  [{:keys [connect-timeout timeout]}]
+  (let [opt (LDAPConnectionOptions.)]
     (when connect-timeout (.setConnectTimeoutMillis opt connect-timeout))
     (when timeout         (.setResponseTimeoutMillis opt timeout))
-    (if ssl?
-      (let [trust-manager (if trust-store
-                            (TrustStoreTrustManager. trust-store)
-                            (TrustAllTrustManager.))
-            ssl-util (SSLUtil. trust-manager)]
-        (LDAPConnection. (.createSSLSocketFactory ssl-util)
-                         opt
-                         host
-                         (or port 636)))
-      (LDAPConnection. opt host (or port 389)))))
+    opt))
 
-(defn- ldap-result
-  "Converts an LDAPResult object into a clojure datastructure"
-  [obj]
-  (let [rc (.getResultCode obj)]
-    [(.intValue rc) (.getName rc)]))
+(defn- create-ssl-factory
+  "Returns a SSLSocketFactory object"
+  [{:keys [trust-store]}]
+  (let [trust-manager (if trust-store
+                        (TrustStoreTrustManager. trust-store)
+                        (TrustAllTrustManager.))
+        ssl-util (SSLUtil. trust-manager)]
+    (.createSSLSocketFactory ssl-util)))
+
+(defn- host-as-map
+  "Returns a single host as a map containing an :address and an optional
+   :port"
+  [host]
+  (cond
+    (nil? host)      {:address "localhost" :port 389}
+    (string? host)   (let [[address port] (string/split host #":")]
+                       {:address (if (= address "")
+                                   "localhost"
+                                   address)
+                        :port (if port
+                                (int (Integer. port)))})
+    (map? host)      (merge {:address "localhost"} host)
+    :else            (throw
+                      (IllegalArgumentException.
+                       (str "Invalid host for an ldap connection : "
+                            host)))))
+
+(defn- create-connection
+  "Create an LDAPConnection object"
+  [{:keys [host ssl?] :as options}]
+  (let [h (host-as-map host)
+        opt (connection-options options)]
+    (if ssl?
+      (let [ssl (create-ssl-factory options)]
+        (LDAPConnection. ssl opt (:address h) (or (:port h) 636)))
+      (LDAPConnection. opt (:address h) (or (:port h) 389)))))
+
+(defn- bind-request
+  "Returns a BindRequest object"
+  [{:keys [bind-dn password]}]
+  (if bind-dn
+    (SimpleBindRequest. bind-dn password)
+    (SimpleBindRequest.)))
+
+(defn- connect-to-host
+  "Connect to a single host"
+  [options]
+  (let [{:keys [num-connections]} options
+        connection (create-connection options)
+        bind-result (.bind connection (bind-request options))]
+    (if (= ResultCode/SUCCESS (.getResultCode bind-result))
+      (LDAPConnectionPool. connection (or num-connections 1))
+      (throw (LDAPException. bind-result)))))
+
+(defn- create-server-set
+  "Returns a RoundRobinServerSet"
+  [{:keys [host ssl?] :as options}]
+  (let [hosts (map host-as-map host)
+        addresses (into-array (map :address hosts))
+        opt (connection-options options)]
+    (if ssl?
+      (let [ssl (create-ssl-factory options)
+            ports (int-array (map #(or (:port %) (int 636)) hosts))]
+        (RoundRobinServerSet. addresses ports ssl opt))
+      (let [ports (int-array (map #(or (:port %) (int 389)) hosts))]
+        (RoundRobinServerSet. addresses ports opt)))))
+
+(defn- connect-to-hosts
+  "Connects to multiple hosts"
+  [options]
+  (let [{:keys [num-connections]} options
+        server-set (create-server-set options)
+        bind-request (bind-request options)]
+    (LDAPConnectionPool. server-set bind-request (or num-connections 1))))
 
 (defn- extract-attribute
   "Extracts [:name value] from the given attribute object. Converts
@@ -113,8 +179,12 @@
 (defn connect
   "Connects to an ldap server and returns a, thread safe, LDAPConnectionPool.
    Options is a map with the following entries:
-   :address         Address of server, defaults to localhost
-   :port            Port to connect to, defaults to 389 (or 636 for ldaps)
+   :host            Either a string in the form \"address:port\"
+                    OR a map containing the keys,
+                       :address   defaults to localhost
+                       :port      defaults to 389 (or 636 for ldaps),
+                    OR a collection containing multiple hosts used for load
+                    balancing and failover. This entry is optional.
    :bind-dn         The DN to bind as, optional
    :password        The password to bind with, optional
    :num-connections The number of connections in the pool, defaults to 1
@@ -128,12 +198,11 @@
                     (milliseconds), defaults to 5 minutes
    "
   [options]
-  (let [{:keys [bind-dn password num-connections]} options
-        connection (create-connection options)
-        bind-result (.bind connection bind-dn password)]
-    (if (= ResultCode/SUCCESS (.getResultCode bind-result))
-      (LDAPConnectionPool. connection (or num-connections 1))
-      (throw (LDAPException. bind-result)))))
+  (let [host (options :host)]
+    (if (and (coll? host)
+             (not (map? host)))
+      (connect-to-hosts options)
+      (connect-to-host options))))
 
 (defn get
   "If successful, returns a map containing the entry for the given DN.

@@ -90,7 +90,6 @@
   "Starts an embedded ldap server on the given port"
   [port ssl-port]
   (stop!)
-  (let [s (start-ldap-server port ssl-port)
-        conn (ldap/connect {:address "localhost" :port port})]
-    (reset! server s)
+  (reset! server (start-ldap-server port ssl-port))
+  (let [conn (ldap/connect {:host {:address "localhost" :port port}})]
     (add-toplevel-objects! conn)))

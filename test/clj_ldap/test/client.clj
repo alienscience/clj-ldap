@@ -52,14 +52,25 @@
   "Opens a sequence of connection pools on the localhost server with the
    given ports"
   [port ssl-port]
-  [(ldap/connect {:port port})
-   (ldap/connect {:address "localhost"
-                  :port port
+  [
+   (ldap/connect {:host {:port port}})
+   (ldap/connect {:host {:address "localhost"
+                         :port port}
                   :num-connections 4})
-   (ldap/connect {:ssl? true :port ssl-port})
-   (ldap/connect {:port port
+   (ldap/connect {:host (str "localhost:" port)})
+   (ldap/connect {:ssl? true
+                  :host {:port ssl-port}})
+   (ldap/connect {:host {:port port}
                   :connect-timeout 1000
-                  :timeout 5000})])
+                  :timeout 5000})
+   (ldap/connect {:host [(str "localhost:" port)
+                         {:port ssl-port}]})
+   (ldap/connect {:host [(str "localhost:" ssl-port)
+                         {:port ssl-port}]
+                  :ssl? true
+                  :num-connections 5})  
+   ])
+
 
 (defn- test-server
   "Setup server"

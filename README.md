@@ -8,7 +8,7 @@ clj-ldap is a thin layer on the [unboundid sdk](http://www.unboundid.com/product
     (ns example
       (:require [clj-ldap.client :as ldap]))
       
-    (def ldap-server (ldap/connect {:address "ldap.example.com"}))
+    (def ldap-server (ldap/connect {:host "ldap.example.com"}))
     
     (ldap/get ldap-server "cn=dude,ou=people,dc=example,dc=com")
     
@@ -28,8 +28,13 @@ clj-ldap is a thin layer on the [unboundid sdk](http://www.unboundid.com/product
 
 Connects to an ldap server and returns a, thread safe, [LDAPConnectionPool](http://www.unboundid.com/products/ldap-sdk/docs/javadoc/com/unboundid/ldap/sdk/LDAPConnectionPool.html).
 Options is a map with the following entries:
-    :address         Address of server, defaults to localhost
-    :port            Port to connect to, defaults to 389 (or 636 for ldaps)
+
+    :host            Either a string in the form "address:port"
+                     OR a map containing the keys,
+                        :address   defaults to localhost
+                        :port      defaults to 389 (or 636 for ldaps),
+                     OR a collection containing multiple hosts used for load
+                     balancing and failover. This entry is optional.
     :bind-dn         The DN to bind as, optional
     :password        The password to bind with, optional
     :num-connections The number of connections in the pool, defaults to 1
@@ -42,7 +47,16 @@ Options is a map with the following entries:
                      (milliseconds), defaults to 5 minutes
 
 For example:
-    (ldap/connect conn {:address "ldap.example.com" :num-connections 10})
+    (ldap/connect conn {:host "ldap.example.com" :num-connections 10})
+    
+    (ldap/connect conn {:host [{:address "ldap1.example.com" :port 8000}
+                               {:address "ldap3.example.com"}
+                               "ldap2.example.com:8001"]
+                        :ssl? true
+                        :num-connections 9})
+                        
+    (ldap/connect conn {:host {:port 8000}})
+                               
     
 ## get [connection dn]
   
