@@ -95,7 +95,48 @@ All the keys in the map are optional e.g:
 
      (ldap/modify conn "cn=dude,ou=people,dc=example,dc=com"
                   {:add {:telephoneNumber "232546265"}})
-      
+
+## search [connection base]  [connection base options]
+
+Runs a search on the connected ldap server, reads all the results into
+memory and returns the results as a sequence of maps.
+
+Options is a map with the following optional entries:
+      :scope       The search scope, can be :base :one or :sub,
+                   defaults to :sub
+      :filter      A string describing the search filter,
+                   defaults to "(objectclass=*)"
+      :attributes  A collection of the attributes to return,
+                   defaults to all user attributes
+e.g
+    (ldap/search conn "ou=people,dc=example,dc=com")
+    
+    (ldap/search conn "ou=people,dc=example,dc=com" {:attributes [:cn]})
+
+## search! [connection base f]   [connection base options f]
+
+Runs a search on the connected ldap server and executes the given
+function (for side effects) on each result. Does not read all the
+results into memory.
+
+Options is a map with the following optional entries:
+     :scope       The search scope, can be :base :one or :sub,
+                  defaults to :sub
+     :filter      A string describing the search filter,
+                  defaults to "(objectclass=*)"
+     :attributes  A collection of the attributes to return,
+                  defaults to all user attributes
+     :queue-size  The size of the internal queue used to store results before
+                  they passed to the function, the default is 100
+
+e.g
+     (ldap/search! conn "ou=people,dc=example,dc=com" println)
+     
+     (ldap/search! conn "ou=people,dc=example,dc=com"
+                        {:filter "sn=dud*"}
+                        (fn [x]
+                           (println "Hello " (:cn x))))
+ 
 ## delete [connection dn]
 
 Deletes the entry with the given DN on the connected ldap server.

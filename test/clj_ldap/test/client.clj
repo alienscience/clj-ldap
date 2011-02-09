@@ -14,8 +14,12 @@
 (def *conn* nil)
 
 ;; Tests concentrate on a single object class
-(def dn*           "cn=%s,ou=people,dc=alienscience,dc=org,dc=uk")
+(def base* "ou=people,dc=alienscience,dc=org,dc=uk")
+(def dn*  (str "cn=%s," base*))
 (def object-class* #{"top" "person"})
+
+;; Variable to catch side effects
+(def *side-effects* nil)
 
 ;; Result of a successful write
 (def success*      [0 "success"])
@@ -167,3 +171,19 @@
              (set [(first b-phonenums) "0000000005"])))
       (is (= (:description new-b) "desc x")))))
 
+
+(deftest test-search
+  (is (= (set (ldap/search *conn* base*
+                           {:attributes [:cn]}))
+         (set [{:cn "testa"} {:cn "testb"} {:cn "Saul Hazledine"}])))
+  (is (= (set (ldap/search *conn* base*
+                           {:attributes [:cn] :filter "cn=test*"}))
+         (set [{:cn "testa"} {:cn "testb"}])))
+  (binding [*side-effects* #{}]
+    (ldap/search! *conn* base* {:attributes [:cn :sn] :filter "cn=test*"}
+                  (fn [x]
+                    (set! *side-effects*
+                          (conj *side-effects* x))))
+    (is (= *side-effects*
+           (set [{:cn "testa" :sn "a"}
+                 {:cn "testb" :sn "b"}])))))

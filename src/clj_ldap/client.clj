@@ -17,7 +17,11 @@
             Modification
             DeleteRequest
             SimpleBindRequest
-            RoundRobinServerSet])
+            RoundRobinServerSet
+            SearchRequest
+            LDAPEntrySource
+            EntrySourceException
+            SearchScope])
   (:import [com.unboundid.util.ssl
             SSLUtil
             TrustAllTrustManager
@@ -124,6 +128,12 @@
       (> (.size attr) 1)     [k (vec (.getValues attr))]
       :else                  [k (.getValue attr)])))
 
+(defn- entry-as-map
+  "Converts an Entry object into a map"
+  [entry]
+  (let [attrs (seq (.getAttributes entry))]
+      (apply hash-map
+             (mapcat extract-attribute attrs))))
 
 (defn- set-entry-kv!
   "Sets the given key/value pair in the given entry object"
@@ -165,6 +175,77 @@
                                  (modifications :replace))]
     (ModifyRequest. dn (into-array (concat adds deletes replacements)))))
 
+
+(defn- next-entry
+  "Attempts to get the next entry from an LDAPEntrySource object"
+  [source]
+  (try
+    (.nextEntry source)
+    (catch EntrySourceException e
+      (if (.mayContinueReading e)
+        (.nextEntry source)
+        (throw e)))))
+
+(defn- entry-seq
+  "Returns a lazy sequence of entries from an LDAPEntrySource object"
+  [source]
+  (if-let [n (.nextEntry source)]
+    (cons n (lazy-seq (entry-seq source)))))
+
+(defn- search-results
+  "Returns a sequence of search results for the given search criteria."
+  [connection {:keys [base scope filter attributes]}]
+  (let [res (.search connection base scope filter attributes)]
+    (if (> (.getEntryCount res) 0)
+      (remove empty?
+              (map entry-as-map (.getSearchEntries res))))))
+
+(defn- search-results!
+  "Call the given function with the results of the search using
+   the given search criteria"
+  [pool {:keys [base scope filter attributes]} queue-size f]
+  (let [request (SearchRequest. base scope filter attributes)
+        conn (.getConnection pool)]
+    (try
+      (with-open [source (LDAPEntrySource. conn request false)]
+        (doseq [i (remove empty?
+                          (map entry-as-map (entry-seq source)))]
+          (f i)))
+      (.releaseConnection pool conn)
+      (catch EntrySourceException e
+        (.releaseDefunctConnection pool conn)
+        (throw e)))))
+
+
+(defn- get-scope
+  "Converts a keyword into a SearchScope object"
+  [k]
+  (condp = k
+    :base SearchScope/BASE
+    :one  SearchScope/ONE
+    SearchScope/SUB))
+
+(defn- get-attributes
+  "Converts a collection of attributes into an array"
+  [attrs]
+  (cond
+    (or (nil? attrs)
+        (empty? attrs))    (into-array java.lang.String
+                                       [SearchRequest/ALL_USER_ATTRIBUTES])
+    :else                  (into-array java.lang.String
+                                       (map name attrs))))
+
+(defn- search-criteria
+  "Returns a map of search criteria from the given base and options"
+  [base options]
+  (let [scope (get-scope (:scope options))
+        filter (or (:filter options) "(objectclass=*)")
+        attributes (get-attributes (:attributes options))]
+    {:base base
+     :scope scope
+     :filter filter
+     :attributes attributes}))
+
 ;;=========== API ==============================================================
 
 (defn connect
@@ -200,9 +281,7 @@
    Returns nil if the entry doesn't exist or cannot be read."
   [connection dn]
   (if-let [result (.getEntry connection dn)]
-    (let [attrs (seq (.getAttributes result))]
-      (apply hash-map
-             (mapcat extract-attribute attrs)))))
+    (entry-as-map result)))
 
 (defn add
   "Adds an entry to the connected ldap server. The entry is assumed to be
@@ -241,4 +320,42 @@
      (.delete connection delete-obj))))
 
 
+(defn search
+  "Runs a search on the connected ldap server, reads all the results into
+   memory and returns the results as a sequence of maps.
+
+   Options is a map with the following optional entries:
+      :scope       The search scope, can be :base :one or :sub,
+                   defaults to :sub
+      :filter      A string describing the search filter,
+                   defaults to \"(objectclass=*)\"
+      :attributes  A collection of the attributes to return,
+                   defaults to all user attributes"
+  ([connection base]
+     (search connection base nil))
+  ([connection base options]
+     (search-results connection (search-criteria base options))))
+
+(defn search!
+  "Runs a search on the connected ldap server and executes the given
+   function (for side effects) on each result. Does not read all the
+   results into memory.
+
+   Options is a map with the following optional entries:
+      :scope       The search scope, can be :base :one or :sub,
+                   defaults to :sub
+      :filter      A string describing the search filter,
+                   defaults to \"(objectclass=*)\"
+      :attributes  A collection of the attributes to return,
+                   defaults to all user attributes
+      :queue-size  The size of the internal queue used to store results before
+                   they passed to the function, the default is 100"
+  ([connection base f]
+     (search! connection base nil f))
+  ([connection base options f]
+     (let [queue-size (or (:queue-size options) 100)]
+       (search-results! connection
+                        (search-criteria base options)
+                        queue-size
+                        f))))
 
