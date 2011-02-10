@@ -1,9 +1,9 @@
 
 # Introduction
 
-clj-ldap is a thin layer on the [unboundid sdk](http://www.unboundid.com/products/ldap-sdk/) and allows clojure programs to talk to ldap servers. This library is available on [clojars.org](http://clojars.org/)
+clj-ldap is a thin layer on the [unboundid sdk](http://www.unboundid.com/products/ldap-sdk/) and allows clojure programs to talk to ldap servers. This library is available on [clojars.org](http://clojars.org/search?q=clj-ldap)
 
-     :dependencies [[clj-ldap "0.0.1"]]
+     :dependencies [[clj-ldap "0.0.2"]]
 
 # Example
 

@@ -1,5 +1,6 @@
 (defproject clj-ldap "0.0.2"
   :description "Clojure ldap client"
+  :url "https://github.com/alienscience/clj-ldap"
   :dependencies [[org.clojure/clojure "1.2.0"]
                  [org.clojure/clojure-contrib "1.2.0"]
                  [com.unboundid/unboundid-ldapsdk "2.0.0"]]
