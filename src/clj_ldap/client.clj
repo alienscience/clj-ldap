@@ -279,10 +279,18 @@
 
 (defn get
   "If successful, returns a map containing the entry for the given DN.
-   Returns nil if the entry doesn't exist or cannot be read."
-  [connection dn]
-  (if-let [result (.getEntry connection dn)]
-    (entry-as-map result)))
+   Returns nil if the entry doesn't exist or cannot be read. Takes an
+   optional collection that specifies which attributes will be returned
+   from the server."
+  ([connection dn]
+     (get connection dn nil))
+  ([connection dn attributes]
+     (if-let [result (if attributes
+                       (.getEntry connection dn
+                                  (into-array java.lang.String
+                                              (map name attributes)))
+                       (.getEntry connection dn))]
+        (entry-as-map result))))
 
 (defn add
   "Adds an entry to the connected ldap server. The entry is assumed to be

@@ -62,12 +62,16 @@ An example:
     (ldap/connect conn {:host {:port 8000}})
                                
     
-## get [connection dn]
+## get [connection dn] [connection dn attributes]
   
 If successful, returns a map containing the entry for the given DN.
 Returns nil if the entry doesn't exist. 
 
     (ldap/get conn "cn=dude,ou=people,dc=example,dc=com")
+
+Takes an optional collection that specifies which attributes will be returned from the server.
+
+    (ldap/get conn "cn=dude,ou=people,dc=example,dc=com" [:cn :sn])
 
 Throws a [LDAPException](http://www.unboundid.com/products/ldap-sdk/docs/javadoc/com/unboundid/ldap/sdk/LDAPException.html) on error.
 

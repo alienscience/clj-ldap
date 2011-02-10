@@ -106,7 +106,11 @@
   (is (= (ldap/get *conn* (:dn person-a*))
          (assoc (:object person-a*) :dn (:dn person-a*))))
   (is (= (ldap/get *conn* (:dn person-b*))
-         (assoc (:object person-b*) :dn (:dn person-b*)))))
+         (assoc (:object person-b*) :dn (:dn person-b*))))
+  (is (= (ldap/get *conn* (:dn person-a*) [:cn :sn])
+         {:dn (:dn person-a*)
+          :cn (-> person-a* :object :cn)
+          :sn (-> person-a* :object :sn)})))
 
 (deftest test-add-delete
   (is (= (ldap/add *conn* (:dn person-c*) (:object person-c*))
