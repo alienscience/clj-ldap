@@ -131,11 +131,10 @@
 (defn- entry-as-map
   "Converts an Entry object into a map"
   [entry]
-  (let [col-a (.getAttributes entry)]
-    (if (> (.size col-a) 0)
-      (let [attrs (seq col-a)]
-        (apply hash-map :dn (.getDN entry)
-               (mapcat extract-attribute attrs))))))
+  (let [col-a (.getAttributes entry)
+        attrs (seq (.getAttributes entry))]
+      (apply hash-map :dn (.getDN entry)
+             (mapcat extract-attribute attrs))))
 
 (defn- set-entry-kv!
   "Sets the given key/value pair in the given entry object"

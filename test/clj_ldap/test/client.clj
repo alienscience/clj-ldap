@@ -181,7 +181,7 @@
 (deftest test-search
   (is (= (set (map :cn
                    (ldap/search *conn* base* {:attributes [:cn]})))
-         (set ["testa" "testb" "Saul Hazledine"])))
+         (set [nil "testa" "testb" "Saul Hazledine"])))
   (is (= (set (map :cn
                    (ldap/search *conn* base*
                                 {:attributes [:cn] :filter "cn=test*"})))
