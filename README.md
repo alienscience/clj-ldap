@@ -104,6 +104,8 @@ a map in the form:
         {:attibute-d value
          :attribute-e [value1 value2]}}
 
+Where :add adds an attribute value, :delete deletes an attribute value and :replace replaces the set of values for the attribute with the ones specified.
+
 All the keys in the map are optional e.g:
 
      (ldap/modify conn "cn=dude,ou=people,dc=example,dc=com"
