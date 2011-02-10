@@ -105,6 +105,10 @@ All the keys in the map are optional e.g:
      (ldap/modify conn "cn=dude,ou=people,dc=example,dc=com"
                   {:add {:telephoneNumber "232546265"}})
 
+The values in the map can also be set to :all when doing a delete e.g:
+
+     (ldap/modify conn "cn=dude,ou=people,dc=example,dc=com"
+                  {:delete {:telephoneNumber :all}})
 
 Throws a [LDAPException](http://www.unboundid.com/products/ldap-sdk/docs/javadoc/com/unboundid/ldap/sdk/LDAPException.html) on error.
 

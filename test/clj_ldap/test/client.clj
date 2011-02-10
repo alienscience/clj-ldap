@@ -104,15 +104,15 @@
 
 (deftest test-get
   (is (= (ldap/get *conn* (:dn person-a*))
-         (:object person-a*)))
+         (assoc (:object person-a*) :dn (:dn person-a*))))
   (is (= (ldap/get *conn* (:dn person-b*))
-         (:object person-b*))))
+         (assoc (:object person-b*) :dn (:dn person-b*)))))
 
 (deftest test-add-delete
   (is (= (ldap/add *conn* (:dn person-c*) (:object person-c*))
          success*))
   (is (= (ldap/get *conn* (:dn person-c*))
-         (:object person-c*)))
+         (assoc (:object person-c*) :dn (:dn person-c*))))
   (is (= (ldap/delete *conn* (:dn person-c*))
          success*))
   (is (nil? (ldap/get *conn* (:dn person-c*)))))
@@ -146,9 +146,13 @@
                         {:delete {:telephoneNumber (first b-phonenums)}})
            success*))
     (is (= (ldap/get *conn* (:dn person-a*))
-           (dissoc (:object person-a*) :description)))
+           (-> (:object person-a*)
+               (dissoc :description)
+               (assoc :dn (:dn person-a*)))))
     (is (= (ldap/get *conn* (:dn person-b*))
-           (assoc (:object person-b*) :telephoneNumber (second b-phonenums))))))
+           (-> (:object person-b*)
+               (assoc :telephoneNumber (second b-phonenums))
+               (assoc :dn (:dn person-b*)))))))
 
 (deftest test-modify-replace
   (let [new-phonenums (-> person-b* :object :telephoneNumber)]
@@ -156,7 +160,9 @@
                         {:replace {:telephoneNumber new-phonenums}})
            success*))
     (is (= (ldap/get *conn* (:dn person-a*))
-           (assoc (:object person-a*) :telephoneNumber new-phonenums)))))
+           (-> (:object person-a*)
+               (assoc :telephoneNumber new-phonenums)
+               (assoc :dn (:dn person-a*)))))))
 
 (deftest test-modify-all
   (let [b (:object person-b*)
@@ -173,17 +179,18 @@
 
 
 (deftest test-search
-  (is (= (set (ldap/search *conn* base*
-                           {:attributes [:cn]}))
-         (set [{:cn "testa"} {:cn "testb"} {:cn "Saul Hazledine"}])))
-  (is (= (set (ldap/search *conn* base*
-                           {:attributes [:cn] :filter "cn=test*"}))
-         (set [{:cn "testa"} {:cn "testb"}])))
+  (is (= (set (map :cn
+                   (ldap/search *conn* base* {:attributes [:cn]})))
+         (set ["testa" "testb" "Saul Hazledine"])))
+  (is (= (set (map :cn
+                   (ldap/search *conn* base*
+                                {:attributes [:cn] :filter "cn=test*"})))
+         (set ["testa" "testb"])))
   (binding [*side-effects* #{}]
     (ldap/search! *conn* base* {:attributes [:cn :sn] :filter "cn=test*"}
                   (fn [x]
                     (set! *side-effects*
-                          (conj *side-effects* x))))
+                          (conj *side-effects* (dissoc x :dn)))))
     (is (= *side-effects*
            (set [{:cn "testa" :sn "a"}
                  {:cn "testb" :sn "b"}])))))
