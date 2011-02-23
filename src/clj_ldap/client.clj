@@ -34,22 +34,37 @@
 
 ;;======== Helper functions ====================================================
 
+(defn- extract-attribute
+  "Extracts [:name value] from the given attribute object. Converts
+   the objectClass attribute to a set."
+  [attr]
+  (let [k (keyword (.getName attr))]
+    (cond
+      (= :objectClass k)     [k (set (vec (.getValues attr)))]
+      (> (.size attr) 1)     [k (vec (.getValues attr))]
+      :else                  [k (.getValue attr)])))
+
 (defn- entry-as-map
-  "Converts an Entry object into a map"
-  [entry]
-  (let [col-a (.getAttributes entry)
-        attrs (seq (.getAttributes entry))]
-      (apply hash-map :dn (.getDN entry)
-             (mapcat extract-attribute attrs))))
+  "Converts an Entry object into a map optionally adding the DN"
+  ([entry]
+     (entry-as-map entry true))
+  ([entry dn?]
+     (let [col-a (.getAttributes entry)
+           attrs (seq (.getAttributes entry))]
+       (if dn?
+         (apply hash-map :dn (.getDN entry)
+                (mapcat extract-attribute attrs))
+         (apply hash-map
+                (mapcat extract-attribute attrs))))))
 
 (defn- add-response-control
   "Adds the values contained in given response control to the given map"
   [m control]
   (condp instance? control
     PreReadResponseControl 
-    (update-in m [:pre-read] merge (entry-as-map (.getEntry control)))
+    (update-in m [:pre-read] merge (entry-as-map (.getEntry control) false))
     PostReadResponseControl
-    (update-in m [:post-read] merge (entry-as-map (.getEntry control)))
+    (update-in m [:post-read] merge (entry-as-map (.getEntry control) false))
     m))
 
 (defn- add-response-controls
@@ -150,17 +165,6 @@
         bind-request (bind-request options)]
     (LDAPConnectionPool. server-set bind-request (or num-connections 1))))
 
-(defn- extract-attribute
-  "Extracts [:name value] from the given attribute object. Converts
-   the objectClass attribute to a set."
-  [attr]
-  (let [k (keyword (.getName attr))]
-    (cond
-      (= :objectClass k)     [k (set (vec (.getValues attr)))]
-      (> (.size attr) 1)     [k (vec (.getValues attr))]
-      :else                  [k (.getValue attr)])))
-
-
 
 (defn- set-entry-kv!
   "Sets the given key/value pair in the given entry object"
@@ -212,7 +216,9 @@
         deletes (modify-ops ModificationType/DELETE (modifications :delete))
         replacements (modify-ops ModificationType/REPLACE
                                  (modifications :replace))
-        all (concat adds deletes replacements)]
+        increments (modify-ops ModificationType/INCREMENT
+                               (modifications :increment))
+        all (concat adds deletes replacements increments)]
     (doto (ModifyRequest. dn (into-array all))
       (add-request-controls modifications))))
 
@@ -353,6 +359,8 @@
       :replace
         {:attibute-d value
          :attribute-e [value1 value2]}
+      :increment
+        {:attribute-f value}
       :pre-read
         #{:attribute-a :attribute-b}
       :post-read
@@ -367,11 +375,17 @@ Where :add adds an attribute value, :delete deletes an attribute value and :repl
 
 
 (defn delete
-  "Deletes the given entry in the connected ldap server"
-  [connection dn]
-  (let [delete-obj (DeleteRequest. dn)]
-    (ldap-result
-     (.delete connection delete-obj))))
+  "Deletes the given entry in the connected ldap server. Optionally takes
+   a map that can contain the entry :pre-read to indicate the attributes
+   that should be read before deletion."
+  ([connection dn]
+     (delete connection dn nil))
+  ([connection dn options]
+     (let [delete-obj (DeleteRequest. dn)]
+       (when options
+         (add-request-controls delete-obj options))
+       (ldap-result
+        (.delete connection delete-obj)))))
 
 
 (defn search

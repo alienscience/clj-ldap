@@ -102,9 +102,15 @@ a map in the form:
          :attribute-e [value1 value2]}
       :replace
         {:attibute-d value
-         :attribute-e [value1 value2]}}
+         :attribute-e [value1 value2]}
+      :increment
+        {:attribute-f value}
+      :pre-read
+        #{:attribute-a :attribute-b}
+      :post-read
+        #{:attribute-c :attribute-d}}
 
-Where :add adds an attribute value, :delete deletes an attribute value and :replace replaces the set of values for the attribute with the ones specified.
+Where :add adds an attribute value, :delete deletes an attribute value and :replace replaces the set of values for the attribute with the ones specified. The entries :pre-read and :post-read specify attributes that have be read and returned either before or after the modifications have taken place. 
 
 All the keys in the map are optional e.g:
 
@@ -115,6 +121,19 @@ The values in the map can also be set to :all when doing a delete e.g:
 
      (ldap/modify conn "cn=dude,ou=people,dc=example,dc=com"
                   {:delete {:telephoneNumber :all}})
+
+The values of the attributes given in :pre-read and :post-read are available in the returned map and are part of an atomic ldap operation e.g
+
+     (ldap/modify conn "uid=maxuid,ou=people,dc=example,dc=com"
+                  {:increment {:uidNumber 1}
+                   :post-read #{:uidNumber}})
+     
+     returns> 
+       {:code 0
+        :name "success"
+        :post-read {:uidNumber "2002"}}
+
+The above technique can be used to maintain counters for unique ids as described by [rfc4525](http://tools.ietf.org/html/rfc4525).
 
 Throws a [LDAPException](http://www.unboundid.com/products/ldap-sdk/docs/javadoc/com/unboundid/ldap/sdk/LDAPException.html) on error.
 
