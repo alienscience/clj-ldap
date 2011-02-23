@@ -22,6 +22,11 @@
             LDAPEntrySource
             EntrySourceException
             SearchScope])
+  (:import [com.unboundid.ldap.sdk.controls
+            PreReadRequestControl
+            PostReadRequestControl
+            PreReadResponseControl
+            PostReadResponseControl])
   (:import [com.unboundid.util.ssl
             SSLUtil
             TrustAllTrustManager
@@ -29,11 +34,38 @@
 
 ;;======== Helper functions ====================================================
 
+(defn- entry-as-map
+  "Converts an Entry object into a map"
+  [entry]
+  (let [col-a (.getAttributes entry)
+        attrs (seq (.getAttributes entry))]
+      (apply hash-map :dn (.getDN entry)
+             (mapcat extract-attribute attrs))))
+
+(defn- add-response-control
+  "Adds the values contained in given response control to the given map"
+  [m control]
+  (condp instance? control
+    PreReadResponseControl 
+    (update-in m [:pre-read] merge (entry-as-map (.getEntry control)))
+    PostReadResponseControl
+    (update-in m [:post-read] merge (entry-as-map (.getEntry control)))
+    m))
+
+(defn- add-response-controls
+  "Adds the values contained in the given response controls to the given map"
+  [controls m]
+  (reduce add-response-control m (seq controls)))
+
 (defn- ldap-result
-  "Converts an LDAPResult object into a vector"
+  "Converts an LDAPResult object into a map"
   [obj]
-  (let [res (.getResultCode obj)]
-    [(.intValue res) (.getName res)]))
+  (let [res (.getResultCode obj)
+        controls (.getResponseControls obj)]
+    (add-response-controls
+     controls
+     {:code (.intValue res)
+      :name (.getName res)})))
 
 (defn- connection-options
   "Returns a LDAPConnectionOptions object"
@@ -128,13 +160,7 @@
       (> (.size attr) 1)     [k (vec (.getValues attr))]
       :else                  [k (.getValue attr)])))
 
-(defn- entry-as-map
-  "Converts an Entry object into a map"
-  [entry]
-  (let [col-a (.getAttributes entry)
-        attrs (seq (.getAttributes entry))]
-      (apply hash-map :dn (.getDN entry)
-             (mapcat extract-attribute attrs))))
+
 
 (defn- set-entry-kv!
   "Sets the given key/value pair in the given entry object"
@@ -166,6 +192,18 @@
   (for [[k v] modify-map]
     (create-modification modify-op (name k) v)))
 
+(defn- add-request-controls
+  [request options]
+  "Adds LDAP controls to the given request"
+  (when (contains? options :pre-read)
+    (let [attributes (map name (options :pre-read))
+          pre-read-control (PreReadRequestControl. (into-array attributes))]
+      (.addControl request pre-read-control)))
+  (when (contains? options :post-read)
+    (let [attributes (map name (options :post-read))
+          pre-read-control (PostReadRequestControl. (into-array attributes))]
+      (.addControl request pre-read-control))))
+
 
 (defn- get-modify-request
   "Sets up a ModifyRequest object using the contents of the given map"
@@ -173,9 +211,10 @@
   (let [adds (modify-ops ModificationType/ADD (modifications :add))
         deletes (modify-ops ModificationType/DELETE (modifications :delete))
         replacements (modify-ops ModificationType/REPLACE
-                                 (modifications :replace))]
-    (ModifyRequest. dn (into-array (concat adds deletes replacements)))))
-
+                                 (modifications :replace))
+        all (concat adds deletes replacements)]
+    (doto (ModifyRequest. dn (into-array all))
+      (add-request-controls modifications))))
 
 (defn- next-entry
   "Attempts to get the next entry from an LDAPEntrySource object"
@@ -313,7 +352,13 @@
          :attribute-e [value1 value2]}
       :replace
         {:attibute-d value
-         :attribute-e [value1 value2]}}
+         :attribute-e [value1 value2]}
+      :pre-read
+        #{:attribute-a :attribute-b}
+      :post-read
+        #{:attribute-c :attribute-d}}
+
+Where :add adds an attribute value, :delete deletes an attribute value and :replace replaces the set of values for the attribute with the ones specified. The entries :pre-read and :post-read specify attributes that have be read and returned either before or after the modifications have taken place. 
 "
   [connection dn modifications]
   (let [modify-obj (get-modify-request dn modifications)]
