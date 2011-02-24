@@ -22,7 +22,7 @@
 (def *side-effects* nil)
 
 ;; Result of a successful write
-(def success*      [0 "success"])
+(def success*      {:code 0 :name "success"})
 
 ;; People to test with
 (def person-a*

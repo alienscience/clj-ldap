@@ -183,10 +183,13 @@ e.g
 
 Throws a [LDAPSearchException](http://www.unboundid.com/products/ldap-sdk/docs/javadoc/com/unboundid/ldap/sdk/LDAPSearchException.html) if an error occurs during search. Throws an [EntrySourceException](http://www.unboundid.com/products/ldap-sdk/docs/javadoc/com/unboundid/ldap/sdk/EntrySourceException.html) if there is an eror obtaining search results. 
 
-## delete [connection dn]
+## delete [connection dn] [connection dn options]
 
-Deletes the entry with the given DN on the connected ldap server.
+Deletes the given entry in the connected ldap server. Optionally takes a map that can contain the entry :pre-read to indicate the attributes that should be read before deletion.
 
      (ldap/delete conn "cn=dude,ou=people,dc=example,dc=com")
 
+     (ldap/delete conn "cn=dude,ou=people,dc=example,dc=com" 
+                       {:pre-read #{"telephoneNumber"}})
+                       
 Throws a [LDAPException](http://www.unboundid.com/products/ldap-sdk/docs/javadoc/com/unboundid/ldap/sdk/LDAPException.html) if the object does not exist or an error occurs.
