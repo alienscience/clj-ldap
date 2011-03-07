@@ -3,6 +3,7 @@
   "Automated tests for clj-ldap"
   (:require [clj-ldap.client :as ldap])
   (:require [clj-ldap.test.server :as server])
+  (:require [clj-ldap.test.apache-server :as apache])
   (:use clojure.test)
   (:import [com.unboundid.ldap.sdk LDAPException]))
 
@@ -10,6 +11,8 @@
 ;; Tests are run over a variety of connection types
 (def port* 8000)
 (def ssl-port* 8001)
+(def apache-port* 8002)
+(def apache-ssl-port* 8003)
 (def *connections* nil)
 (def *conn* nil)
 
@@ -79,8 +82,12 @@
 (defn- test-server
   "Setup server"
   [f]
+  (apache/start! apache-port* apache-ssl-port*)
+  (binding [*connections* (connect-to-server apache-port* apache-ssl-port*)]
+    (f))
+  (apache/stop!)
   (server/start! port* ssl-port*)
-  (binding [*connections* (connect-to-server port* ssl-port*)]
+  (binding [*connections* [(ldap/connect {:host {:port port*}})]]
     (f))
   (server/stop!))
 

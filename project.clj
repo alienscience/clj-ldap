@@ -3,7 +3,7 @@
   :url "https://github.com/alienscience/clj-ldap"
   :dependencies [[org.clojure/clojure "1.2.0"]
                  [org.clojure/clojure-contrib "1.2.0"]
-                 [com.unboundid/unboundid-ldapsdk "2.0.0"]]
+                 [com.unboundid/unboundid-ldapsdk "2.0.2"]]
   :dev-dependencies [[swank-clojure "1.2.1"]
                      [org.apache.directory.server/apacheds-all "1.5.5"]
                      [org.slf4j/slf4j-simple "1.5.6"]

@@ -1,62 +1,45 @@
 
 (ns clj-ldap.test.server
-  "An embedded ldap server for unit testing"
+  "An embedded unboundid ldap server for unit testing"
   (:require [clj-ldap.client :as ldap])
   (:use clojure.contrib.def)
-  (:use [clj-file-utils.core :only [rm-rf mkdir-p]])
-  (:import [org.apache.directory.server.core
-            DefaultDirectoryService
-            DirectoryService])
-  (:import [org.apache.directory.server.ldap
-            LdapServer])
-  (:import [org.apache.directory.server.protocol.shared.transport
-            TcpTransport])
-  (:import [java.util HashSet])
-  (:import [org.apache.directory.server.core.partition.impl.btree.jdbm
-            JdbmPartition
-            JdbmIndex]))
+  (:import [com.unboundid.ldap.listener
+            InMemoryDirectoryServer
+            InMemoryDirectoryServerConfig])
+  (:import [javax.net.ssl
+            SSLSocketFactory
+            SSLServerSocketFactory]))
 
 (defonce server (atom nil))
-
-(defn- add-partition! 
-  "Adds a partition to the embedded directory service"
-  [service id dn]
-  (let [partition (doto (JdbmPartition.)
-                    (.setId id)
-                    (.setSuffix dn))]
-    (.addPartition service partition)
-    partition))
-
-(defn- add-index!
-  "Adds an index to the given partition on the given attributes"
-  [partition & attrs]
-  (let [indexed-attrs (HashSet.)]
-    (doseq [attr attrs]
-      (.add indexed-attrs (JdbmIndex. attr)))
-    (.setIndexedAttributes partition indexed-attrs)))
+(defonce ssl-server (atom nil))
 
 (defn- start-ldap-server
   "Start up an embedded ldap server"
-  [port ssl-port]
-  (let [work-path (doto "/tmp/apacheds" rm-rf mkdir-p)
-        work-dir  (java.io.File. work-path)
-        directory-service (doto (DefaultDirectoryService.)
-                            (.setShutdownHookEnabled true)
-                            (.setWorkingDirectory work-dir))
-        ldap-transport (TcpTransport. port)
-        ssl-transport (doto (TcpTransport. ssl-port)
-                        (.setEnableSSL true))
-        ldap-server (doto (LdapServer.)
-                      (.setDirectoryService directory-service)
-                      (.setAllowAnonymousAccess true)
-                      (.setTransports
-                       (into-array [ldap-transport ssl-transport])))]
-    (-> (add-partition! directory-service
-                        "clojure" "dc=alienscience,dc=org,dc=uk")
-        (add-index! "objectClass" "ou" "uid"))
-    (.startup directory-service)
-    (.start ldap-server)
-    [directory-service ldap-server]))
+  [port]
+  (let [config (doto (InMemoryDirectoryServerConfig.
+                      (into-array ["dc=alienscience,dc=org,dc=uk"]))
+                 (.setListenPort port))
+        server (doto (InMemoryDirectoryServer. config)
+                 .startListening)]
+    server))
+
+(defn- start-ssl-ldap-server
+  "Start up an embedded ldap server listening over ssl"
+  [port]
+  (let [config (doto (InMemoryDirectoryServerConfig.
+                      (into-array ["dc=alienscience,dc=org,dc=uk"]))
+                 (.setListenPort port)
+                 (.setServerSocketFactory (SSLServerSocketFactory/getDefault))
+                 (.setClientSocketFactory (SSLSocketFactory/getDefault)))
+        server (doto (InMemoryDirectoryServer. config)
+                 .startListening)]
+    server))
+
+(defn- stop-ldap-server
+  "Stops an embedded ldap server"
+  [server]
+  (.shutDown server true))
+
 
 (defn- add-toplevel-objects!
   "Adds top level objects, needed for testing, to the ldap server"
@@ -74,22 +57,25 @@
              :sn "Hazledine"
              :description "Creator of bugs"}))
 
-
-
-
 (defn stop!
-  "Stops the embedded ldap server"
+  "Stops the embedded ldap servers"
   []
   (if @server
-    (let [[directory-service ldap-server] @server]
+    (let [ldap-server @server]
       (reset! server nil)
-      (.stop ldap-server)
-      (.shutdown directory-service))))
+      (stop-ldap-server ldap-server)))
+  (if @ssl-server
+    (let [ldap-server @ssl-server]
+      (reset! ssl-server nil)
+      (stop-ldap-server ldap-server))))
 
 (defn start!
-  "Starts an embedded ldap server on the given port"
+  "Starts embedded ldap servers on the given ports"
   [port ssl-port]
   (stop!)
-  (reset! server (start-ldap-server port ssl-port))
+  (reset! server (start-ldap-server port))
+  (reset! ssl-server (start-ssl-ldap-server ssl-port))
   (let [conn (ldap/connect {:host {:address "localhost" :port port}})]
-    (add-toplevel-objects! conn)))
+    (add-toplevel-objects! conn))
+  ;; TODO: fix problem connecting over SSL
+  )
