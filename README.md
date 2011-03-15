@@ -5,6 +5,8 @@ clj-ldap is a thin layer on the [unboundid sdk](http://www.unboundid.com/product
 
      :dependencies [[clj-ldap "0.0.3"]]
 
+This library has the same open source license as clojure (Eclipse v 1.0).
+
 # Example
 
     (ns example
