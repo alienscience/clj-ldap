@@ -427,3 +427,15 @@ Where :add adds an attribute value, :delete deletes an attribute value and :repl
                         queue-size
                         f))))
 
+(defn bind
+  "Attempts to bind on the given connection using the given dn and password.
+   Returns true if the bind is successful, false if not.
+   One use of this function is to securely check a user password without
+   reading it."
+  [connection bind-dn password]
+  (let [bind-request (SimpleBindRequest. bind-dn password)]
+    (try
+      (.bind connection bind-request)
+      true
+      (catch Exception e
+        false))))

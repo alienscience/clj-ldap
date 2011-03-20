@@ -198,3 +198,11 @@
     (is (= *side-effects*
            (set [{:cn "testa" :sn "a"}
                  {:cn "testb" :sn "b"}])))))
+
+(deftest test-bind
+  (is (= true (ldap/bind *conn*
+                         (:dn person-b*)
+                         (-> person-b* :object :userPassword))))
+  (is (= false (ldap/bind *conn*
+                          (:dn person-b*)
+                          "aaardvark"))))
