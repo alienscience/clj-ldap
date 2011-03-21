@@ -196,8 +196,3 @@ Deletes the given entry in the connected ldap server. Optionally takes a map tha
                        
 Throws a [LDAPException](http://www.unboundid.com/products/ldap-sdk/docs/javadoc/com/unboundid/ldap/sdk/LDAPException.html) if the object does not exist or an error occurs.
 
-## bind [connection dn password]
-
-Attempts to bind on the given connection using the given dn and password. Returns true if the bind is successful, false if not. One use of this function is to securely check a user password without reading it.
-
-    (ldap/bind conn "cn=dude,ou=people,dc=example,dc=com" "password")
