@@ -1,4 +1,10 @@
 
+# Use the Fork
+
+This project has a more up to date fork at:
+
+     https://github.com/pauldorman/clj-ldap
+
 # Introduction
 
 clj-ldap is a thin layer on the [unboundid sdk](http://www.unboundid.com/products/ldap-sdk/) and allows clojure programs to talk to ldap servers. This library is available on [clojars.org](http://clojars.org/search?q=clj-ldap)
